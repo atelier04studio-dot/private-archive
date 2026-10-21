@@ -49,3 +49,24 @@ test('ZIP carries both original payloads and UTF-8 names',async()=>{
  let p=0;for(const f of files){assert.equal(v.getUint32(p,true),0x04034b50);assert.equal(v.getUint16(p+6,true),0x800);const n=v.getUint16(p+26,true),size=v.getUint32(p+18,true);assert.equal(new TextDecoder().decode(b.slice(p+30,p+30+n)),f.name);assert.equal(new TextDecoder().decode(b.slice(p+30+n,p+30+n+size)),await f.text());p+=30+n+size;}
  assert.equal(v.getUint16(b.length-12,true),2);
 });
+
+import {detachedBlob,verifiedOriginal} from './image-data.js';
+import {sha256} from './sync-model.js';
+test('original recovery verifies unreadable and corrupted cached bytes against cloud',async()=>{
+ const source=new Blob(['original bytes'],{type:'image/png'}),hash=await sha256(source);
+ const item={blob:source,hash,size:source.size,type:source.type};let downloads=0;
+ const download=async requested=>{assert.equal(requested,hash);downloads++;return source;};
+ assert.equal(await (await verifiedOriginal(item,download)).text(),'original bytes');assert.equal(downloads,0);
+ const unreadable={size:source.size,type:source.type,arrayBuffer:async()=>{throw Error('unreadable file');}};
+ assert.equal(await (await verifiedOriginal({...item,blob:unreadable},download)).text(),'original bytes');
+ assert.equal(await (await verifiedOriginal({...item,blob:new Blob(['wrong'])},download)).text(),'original bytes');
+ assert.equal(downloads,2);assert.equal(item.blob,source);
+});
+test('repair rejects mismatched or missing cloud data and preserves unsynced originals',async()=>{
+ const blob=new Blob(['original'],{type:'image/png'}),item={blob,hash:await sha256(blob),size:blob.size,type:blob.type};
+ await assert.rejects(verifiedOriginal(item,async()=>new Blob(['wrong']),true),/照合/);
+ await assert.rejects(verifiedOriginal(item,async()=>{throw Error('offline');},true),/offline/);
+ await assert.rejects(verifiedOriginal({blob},async()=>{throw Error('must not download');},true),/未同期/);
+ assert.equal(await blob.text(),'original');
+ await assert.rejects(detachedBlob({size:4,arrayBuffer:async()=>new ArrayBuffer(0)}),/読み込めません/);
+});
