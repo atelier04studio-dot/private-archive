@@ -13,3 +13,5 @@
 
 #account-gate{display:none;padding:12vh 8vw;max-width:900px;margin:auto}#account-gate h1{font-size:clamp(30px,5vw,60px)}#account-gate a{display:inline-block;margin:12px 12px 12px 0}html.account-locked body>*{display:none!important}html.account-locked #account-gate{display:block!important}#account-email{overflow:hidden;text-overflow:ellipsis;max-width:240px}header{gap:16px;flex-wrap:wrap}header #signout{font-size:12px}@media(max-width:650px){#account-email{max-width:160px;font-size:10px}header #help{margin-left:auto}}
 #folder-form input,#folder-form select{font-size:16px;line-height:1.5;min-height:48px}
+
+#export-settings,#other-save-methods{margin:16px 0}#export-settings>summary,#other-save-methods>summary{cursor:pointer;padding:12px 0;font-size:14px}#export-settings[open]>summary{margin-bottom:12px}
