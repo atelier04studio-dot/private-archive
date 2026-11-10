@@ -1,67 +1,32 @@
-# 2026-11-02：iPhone内保存版
-
-通常の index.html はログインなし・端末内保存・同期なしです。画像は独立したブラウザ内DBに保存します。旧版は cloud.html に残し、認証・Supabase設定を変更していません。既存画像は旧版からJSONバックアップを保存し、新版の「バックアップを戻す」で取り込めます。旧画像は自動移動も削除もしません。
-
-端末故障やサイトデータ消去に備え、バックアップを別の場所へ保存してください。以下は旧クラウド版の構築記録です。
-
----
-
 # PRIVATE ARCHIVE / ATELIER 04
 
-GitHub Pages + Supabaseで動く、iPhone・Mac向けの画像保管アプリ。
-ChatGPT SitesのサーバーやChatGPT契約に依存しない静的JavaScript版。
+端末保存版 v2026.11.10.1（2026-11-10）。公開先：
+https://atelier04studio-dot.github.io/private-archive/index.html
 
-**2026-10-22：Pages公開・Google接続済み。本人によるiPhone追加・出力とMac同期を確認。iPhone再読込後の画像エラー対策を追加し、実機再確認中。一般提供前の検証は継続中。**
+## 保存先と同期
 
-## 機能
+通常の入口は index.html。ログインなしで、この端末・ブラウザのIndexedDBに保存します。Mac/iPhone間の自動同期はありません。Safariとホーム画面のアプリで保存領域が別になる場合があります。移動にはバックアップと復元を使ってください。
 
-- JPEG/PNG/WebP原本の追加、フォルダー、複数選択・移動、お気に入り、ごみ箱と復元。
-- JPEG/PNG/原本で書き出し。JPEG/PNGには今日または登録した元の日付を付与。
-- 原本は変換しないため、原本出力の内部日付は変更しない。
-- 最大30枚のZIP書き出し、JSONバックアップ。
-- Googleログイン、Supabaseの非公開Storage、利用者別IndexedDB。
-- ページを開いている間に自動同期。同時編集は別バージョンを保持。
+旧 cloud.html はSupabase版です。既存の認証設定・データは変更していません。現在の端末保存版とは別の保管場所です。旧版の運用記録は CLOUD-LEGACY.md を参照。旧版の同期や認証の現時点の動作は未検証です。
 
-## 設定・公開
+## 画像・出力
 
-1. 新規Supabaseで `001_private_archive.sql` を1回適用する。既存アプリのプロジェクトに流用しない。
-2. Google OAuthを設定。Google側の承認済みリダイレクトURIはSupabaseの `/auth/v1/callback`。
-3. SupabaseのSite URLとRedirect URLsに公開アプリの正確な `https://atelier04studio-dot.github.io/private-archive/index.html` を登録する。ワイルドカードを使わない。
-4. `config.js` にはプロジェクトURLと **publishable keyのみ**を置く。service role、secret key、DBパスワード、OAuth secretは禁止。
-5. 本人が一度ログインしたあと、Supabase Usersの本人UUIDを管理者が確認し、SQL Editorから `insert into public.pa_members(user_id) values ('確認済みの本人UUID');` を実行する。誰でも自分を会員登録できるAPIはない。
-6. GitHub PagesのSourceを `Deploy from a branch`、`main`、`/(root)` にする。画像そのものをGitHubにアップロードしない。
-7. 一般ユーザーA/Bと匿名で直接APIのアクセス拒否を検証し、iPhone/Mac同期、再読込、Google OAuth復帰、書き出し後の写真アプリを確認する。
+- JPEG/PNG/WebP、1枚30MiB、原本合計300MiB。フォルダー、全フォルダーを対象にした検索、お気に入り、ごみ箱からの復元。
+- 新規保存と編集時は原本とサムネイルをArrayBufferで保存し、表示時にBlobを再構成。DB名・既存レコードは維持。読めない古い原本は自動削除しません。
+- JPEG/PNG変換は最大1600万画素・長辺8192px。原本出力は無変換。
+- 最大30枚。「準備」完了後に「写真に保存」を押すとOS共有画面が開きます。共有対応はブラウザ・形式によります。ZIP・バックアップにも対応時は共有ボタンを表示。非対応時はダウンロードリンクを使用。
+- 共有完了は写真やファイルへの保存成功を保証しません。保存先で確認してください。
 
-新Supabase：`ebzcuotuvvqtealoqzax`。2026-10-21にschemaを適用済み。
-`002_policy_checks.sql` は一時データによるDBロールテスト。すべてロールバックする。実JWTとStorage APIの検証の代わりにはならない。
+## バックアップと復元
 
-## 開発・テスト
+原本・メタデータ・空フォルダー・ごみ箱をJSON v2で保存します。原本約20MiBごとに分割（単一画像は最大30MiB）。表示された全ファイルを保存し、復元時は1ファイルずつ読み込みます。巨大な単一JSONの生成を避けます。
 
-ビルド不要。HTTPSまたはlocalhostから配信する。`file://`で開かない。
+旧JSON v1/v2も対応。1ファイル内の検証終了後に単一トランザクションで追加します。同じID・同じ画像は重複追加せず、既存メタデータを優先。同じIDでも異なる/読めない画像は別IDで復元し、既存画像を保持します。読めない原本がある場合、全バックアップ成功とは表示しません。元画像または以前のバックアップから復元してください。
 
-```sh
-python3 -m http.server 4173 --bind 127.0.0.1
-npm test
-```
+ブラウザのデータ削除はしないでください。端末保存は端末故障やOSによる保存領域削除に備えたバックアップの代わりにはなりません。
 
-Supabase JS SDK 2.117.3は `supabase-vendor.js` に同梱。esbuild 0.27.3で `@supabase/supabase-js/dist/index.mjs` をbrowser/ESM/minifyとしてbundleした。ライセンスは `THIRD_PARTY_LICENSES.txt`。CDN実行依存なし。
+## 更新とテスト
 
-## 制限と運用
+ビルド不要。HTTPSまたはlocalhostから配信。`npm test` で画像日付、ZIP、旧クラウド競合処理、バイト保存・復元・共有判定のテスト。Service Workerはアプリ資材だけをキャッシュし、更新確認ではHTTPキャッシュを再検証。資材の版をURLで固定。IndexedDB・クラウド画像をキャッシュ更新で削除しません。
 
-- 1枚30MiB、画像は合計300MiB（ごみ箱含む）。画像内メタデータと申告サイズをDBでも検査する。
-- 300MiBはmanifestの制限。中断アップロード等の孤立原本を含めたStorage全体の厳密な利用者別上限は未実装。招待制で運用し、Supabase Usageを確認する。
-- 新しい端末の初回同期では全原本を取得。各端末のキャッシュ済み原本は再取得しない。サムネイル専用クラウド取得は未実装。
-- 端末やブラウザの空き容量が必要。ログアウトしても本人専用キャッシュは残る。共有端末には使わない。ローカル消去画面は未実装。
-- ごみ箱は復元可能な論理削除。永久削除と孤立ファイル清掃は未実装。
-- 完全オフライン起動、HEIC/GIF、PNG日付の全写真アプリ互換は保証しない。
-- クラウド障害や無料枠休止に備え、バックアップと元の写真を保持する。
-- 友人・家族の追加は容量・アクセス拒否テスト完了後に管理者が許可する。
-
-Supabase無料枠はStorage 1GB、DB 500MB、転送量5GB等。最新条件は [Supabase pricing](https://supabase.com/pricing) を確認する。
-[GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits) も確認する。商用SaaSの公開基盤としての利用は別途検討が必要。
-
-ブランド素材・コードの権利を自動的にオープンソースライセンスで許諾するものではありません。第三者ライブラリは各ライセンスに従います。
-
-## 画像が開けないとき
-
-ページを再読込し「画像の読み込みを修復」を押すと、同期済み原本を本人専用Storageから取得し、サイズ・SHA256・画像デコードを検査して端末キャッシュを更新します。未同期画像は変更しません。クラウド原本やフォルダー・日付の変更は行いません。通信に失敗したときは削除せず停止します。全原本を取り直すため通信量が発生します。
+iPhone実機での共有、写真アプリ保存、ホーム画面起動、容量上限付近のメモリ挙動、実データの旧Blob障害は未検証です。詳細は REPAIR-REPORT.md を参照。

@@ -1,9 +1,14 @@
 {
   "name": "private-archive",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test core.test.js"
+    "test": "node --test *.test.js",
+    "test:integration": "node tests/local-integration.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "fake-indexeddb": "6.2.5"
   }
 }
